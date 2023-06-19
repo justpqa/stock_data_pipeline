@@ -1,0 +1,8 @@
+apache-airflow-providers-google
+pyarrow
+requests
+pandas 
+numpy
+yfinance
+lxml
+tqdm
