@@ -1,0 +1,43 @@
+[2023-06-19T05:50:37.405+0000] {logging_mixin.py:149} WARNING - /home/***/.local/lib/python3.7/site-packages/***/utils/sqlalchemy.py:124 DeprecationWarning: The sql_alchemy_conn option in [core] has been moved to the sql_alchemy_conn option in [database] - the old setting has been used, but please update your config.
+[2023-06-19T05:50:37.429+0000] {taskinstance.py:1103} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: data_ingestion_gcs_dag.local_to_gcs scheduled__2023-06-19T04:00:00+00:00 [queued]>
+[2023-06-19T05:50:37.444+0000] {taskinstance.py:1103} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: data_ingestion_gcs_dag.local_to_gcs scheduled__2023-06-19T04:00:00+00:00 [queued]>
+[2023-06-19T05:50:37.445+0000] {taskinstance.py:1308} INFO - Starting attempt 1 of 3
+[2023-06-19T05:50:37.469+0000] {taskinstance.py:1327} INFO - Executing <Task(PythonOperator): local_to_gcs> on 2023-06-19 04:00:00+00:00
+[2023-06-19T05:50:37.479+0000] {standard_task_runner.py:57} INFO - Started process 696 to run task
+[2023-06-19T05:50:37.489+0000] {standard_task_runner.py:84} INFO - Running: ['***', 'tasks', 'run', 'data_ingestion_gcs_dag', 'local_to_gcs', 'scheduled__2023-06-19T04:00:00+00:00', '--job-id', '6', '--raw', '--subdir', 'DAGS_FOLDER/stock_data_to_gcp.py', '--cfg-path', '/tmp/tmps4sr1iqi']
+[2023-06-19T05:50:37.494+0000] {standard_task_runner.py:85} INFO - Job 6: Subtask local_to_gcs
+[2023-06-19T05:50:37.539+0000] {logging_mixin.py:149} WARNING - /home/***/.local/lib/python3.7/site-packages/***/settings.py:195 DeprecationWarning: The sql_alchemy_conn option in [core] has been moved to the sql_alchemy_conn option in [database] - the old setting has been used, but please update your config.
+[2023-06-19T05:50:37.603+0000] {task_command.py:410} INFO - Running <TaskInstance: data_ingestion_gcs_dag.local_to_gcs scheduled__2023-06-19T04:00:00+00:00 [running]> on host 0c6b91135793
+[2023-06-19T05:50:37.625+0000] {logging_mixin.py:149} WARNING - /home/***/.local/lib/python3.7/site-packages/***/utils/sqlalchemy.py:124 DeprecationWarning: The sql_alchemy_conn option in [core] has been moved to the sql_alchemy_conn option in [database] - the old setting has been used, but please update your config.
+[2023-06-19T05:50:38.055+0000] {taskinstance.py:1547} INFO - Exporting env vars: AIRFLOW_CTX_DAG_EMAIL='***@***.com' AIRFLOW_CTX_DAG_OWNER='***' AIRFLOW_CTX_DAG_ID='data_ingestion_gcs_dag' AIRFLOW_CTX_TASK_ID='local_to_gcs' AIRFLOW_CTX_EXECUTION_DATE='2023-06-19T04:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='scheduled__2023-06-19T04:00:00+00:00'
+[2023-06-19T05:50:38.060+0000] {taskinstance.py:1824} ERROR - Task failed with exception
+Traceback (most recent call last):
+  File "/home/airflow/.local/lib/python3.7/site-packages/airflow/operators/python.py", line 181, in execute
+    return_value = self.execute_callable()
+  File "/home/airflow/.local/lib/python3.7/site-packages/airflow/operators/python.py", line 198, in execute_callable
+    return self.python_callable(*self.op_args, **self.op_kwargs)
+  File "/opt/airflow/dags/stock_data_to_gcp.py", line 77, in upload_to_gcs
+    client = storage.Client()
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/cloud/storage/client.py", line 177, in __init__
+    _http=_http,
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/cloud/client/__init__.py", line 320, in __init__
+    _ClientProjectMixin.__init__(self, project=project, credentials=credentials)
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/cloud/client/__init__.py", line 268, in __init__
+    project = self._determine_default(project)
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/cloud/client/__init__.py", line 287, in _determine_default
+    return _determine_default_project(project)
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/cloud/_helpers/__init__.py", line 152, in _determine_default_project
+    _, project = google.auth.default()
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/auth/_default.py", line 615, in default
+    credentials, project_id = checker()
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/auth/_default.py", line 608, in <lambda>
+    lambda: _get_explicit_environ_credentials(quota_project_id=quota_project_id),
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/auth/_default.py", line 229, in _get_explicit_environ_credentials
+    os.environ[environment_vars.CREDENTIALS], quota_project_id=quota_project_id
+  File "/home/airflow/.local/lib/python3.7/site-packages/google/auth/_default.py", line 117, in load_credentials_from_file
+    "File {} was not found.".format(filename)
+google.auth.exceptions.DefaultCredentialsError: File /.google/credentials/google_credentials.json was not found.
+[2023-06-19T05:50:38.074+0000] {taskinstance.py:1350} INFO - Marking task as UP_FOR_RETRY. dag_id=data_ingestion_gcs_dag, task_id=local_to_gcs, execution_date=20230619T040000, start_date=20230619T055037, end_date=20230619T055038
+[2023-06-19T05:50:38.092+0000] {standard_task_runner.py:109} ERROR - Failed to execute job 6 for task local_to_gcs (File /.google/credentials/google_credentials.json was not found.; 696)
+[2023-06-19T05:50:38.122+0000] {local_task_job_runner.py:225} INFO - Task exited with return code 1
+[2023-06-19T05:50:38.169+0000] {taskinstance.py:2651} INFO - 0 downstream tasks scheduled from follow-on schedule check
