@@ -11,10 +11,6 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from datetime import datetime
 import pandas as pd
 import yfinance as yf
-from tqdm import tqdm
-
-import pyarrow.csv as pv
-import pyarrow.parquet as pq
 
 # define variables to be used
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
@@ -46,7 +42,7 @@ def get_top500_intraday():
     # get the intraday data of these companies
     data = yf.download(tickers=company_lst[0], period='1d', interval='60m', progress=False)
     data["ticker"] = company_lst[0]
-    for i in tqdm(range(1, len(company_lst))):
+    for i in range(1, len(company_lst)):
         temp = yf.download(tickers=company_lst[i], period='1d', interval='60m', progress=False)
         temp["ticker"] = company_lst[i]
         data = pd.concat([data, temp], axis = 0)
