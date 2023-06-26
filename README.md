@@ -18,7 +18,7 @@ Feel free to look at my project and give me a star if you think it is good! Than
 - [x] Create GCP account + configure VM instance
 - [x] Set up Python, Docker, Airflow GCP config on VM 
 - [x] Create pipeline for uploading intraday stock data of 500 stocks hourly to GCP
-- [ ] Create pipeline for uploading text data to GCP
+- [x] Create pipeline for uploading text data to GCP
 - [ ] Create dashboard
 - [ ] Improve pipeline to support more data uploading (minute instead of hourly data)
 
