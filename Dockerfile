@@ -1,12 +1,16 @@
 # First-time build can take upto 10 mins.
-
 FROM apache/airflow:2.6.1
 
 ENV AIRFLOW_HOME=/opt/airflow
 
 USER root
 RUN apt-get update -qq && apt-get install vim -qqq
-# git gcc g++ -qqq
+
+# need to figure how to make airflow + selenium works
+RUN apt-get -y install chromium \
+    && apt-get -y install chromium-driver \
+    && apt-get update --fix-missing \
+    && apt-get install -f
 
 # need to swap to airflow user and switching back to root user
 USER ${AIRFLOW_UID}
@@ -19,7 +23,7 @@ USER root
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-ARG CLOUD_SDK_VERSION=322.0.0
+ARG CLOUD_SDK_VERSION=437.0.0
 ENV GCLOUD_HOME=/home/google-cloud-sdk
 
 ENV PATH="${GCLOUD_HOME}/bin/:${PATH}"

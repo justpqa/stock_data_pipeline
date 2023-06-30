@@ -5,4 +5,4 @@ pandas
 numpy
 yfinance
 lxml
-tqdm
+selenium==4.9.1

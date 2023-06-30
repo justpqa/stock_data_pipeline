@@ -19,9 +19,6 @@ import numpy as np
 from datetime import datetime
 import time
 
-# for multiprocessing
-# from concurrent.futures import ProcessPoolExecutor, as_completed
-
 # define variables to be used
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
@@ -44,10 +41,11 @@ def get_top500_companies():
     return sp500_companies
 
 def get_news(ticker):
-    # each inx will get news from 100 * inx -> 100 + 100 * inx for inx in 0, 1, 2, 3, and 100 * inx -> end if inx = 4
     news_df = pd.DataFrame(columns=["Date", "Ticker", "Title"])
     browser_options = ChromeOptions()
     browser_options.add_argument("--no-sandbox")
+    browser_options.add_argument("--headless")
+    browser_options.add_argument("--disable-dev-shm-usage")
     driver = Chrome(options = browser_options)
     driver.get("https://www.cnbc.com/quotes/{}?tab=news".format(ticker))
     ticker = ticker
@@ -69,21 +67,13 @@ def get_news(ticker):
     return news_df
 
 def get_all_news():
-    # support multiprocessing
-    # 30 minutes
     company_lst = get_top500_companies()
-    # with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-    #     futures = {}
-    #     for inx, ticker in enumerate(company_lst):
-    #         future = executor.submit(get_news, ticker)
-    #         futures[future] = inx
-    #     results = [None] * len(company_lst)
-    #     for future in as_completed(futures):
-    #         inx = futures[future]
-    #         results[inx] = future.result()
+    print("Found companies")
     results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
     for c in company_lst:
-        results_df = pd.concat([results_df, get_news(c)])
+        temp = get_news(c)
+        results_df = pd.concat([results_df, temp])
+        print(c)
     results_df = results_df.reset_index().drop("index", axis = 1)
     results_df.to_csv(f"{path_to_local_home}/{dataset_file}", index = False)
     
@@ -102,16 +92,11 @@ default_args = {
 # define the dags
 with DAG(
     dag_id="news_data_ingestion_dag",
-    schedule_interval="@hourly",
+    schedule_interval=None,
     default_args=default_args,
     catchup=False,
     max_active_runs=1
 ) as dag:
-    
-    get_xfvb_run_task = BashOperator(
-        task_id = "get_xfvb_run",
-        bash_command = "Xvfb -ac :99 -screen 0 1280x1024x16 & export DISPLAY=:99"
-    )
     
     get_all_news_task = PythonOperator(
         task_id = "get_all_news",
@@ -139,4 +124,4 @@ with DAG(
         dag=dag,
     )
     
-get_xfvb_run_task >> get_all_news_task >>  local_to_gcs_task >> gcs_to_bigquery_task
+get_all_news_task >> local_to_gcs_task >> gcs_to_bigquery_task
