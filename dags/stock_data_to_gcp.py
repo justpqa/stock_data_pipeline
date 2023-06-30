@@ -18,7 +18,6 @@ BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 dataset_file = "YOUR_DATASET_CSV_FILE"
 dataset_name = "YOUR_BQ_DATASET"
-#parquet_file = dataset_file.replace('.csv', '.parquet')
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'YOUR_BQ_DATASET')
 table_name = "YOUR_BQ_TABLE"
 
@@ -48,36 +47,6 @@ def get_top500_intraday():
         data = pd.concat([data, temp], axis = 0)
     data = data.iloc[:, [6, 0, 1, 2, 3, 4, 5]].reset_index()
     data.to_csv(f"{path_to_local_home}/{dataset_file}", index = False)
-
-# try to convert to parquet later
-# def format_to_parquet(src_file):
-#     if not src_file.endswith('.csv'):
-#         logging.error("Can only accept source files in CSV format, for the moment")
-#         return
-#     table = pv.read_csv(src_file)
-#     pq.write_table(table, src_file.replace('.csv', '.parquet'))
-
-
-# # NOTE: takes 20 mins, at an upload speed of 800kbps. Faster if your internet has a better upload speed
-# def upload_to_gcs(bucket, object_name, local_file):
-#     """
-#     Ref: https://cloud.google.com/storage/docs/uploading-objects#storage-upload-object-python
-#     :param bucket: GCS bucket name
-#     :param object_name: target path & file-name
-#     :param local_file: source path & file-name
-#     :return:
-#     """
-#     # WORKAROUND to prevent timeout for files > 6 MB on 800 kbps upload speed.
-#     # (Ref: https://github.com/googleapis/python-storage/issues/74)
-#     storage.blob._MAX_MULTIPART_SIZE = 5 * 1024 * 1024  # 5 MB
-#     storage.blob._DEFAULT_CHUNKSIZE = 5 * 1024 * 1024  # 5 MB
-#     # End of Workaround
-
-#     client = storage.Client()
-#     bucket = client.bucket(bucket)
-
-#     blob = bucket.blob(object_name)
-#     blob.upload_from_filename(local_file)
     
 # define the default arguments for dags
 default_args = {
@@ -103,24 +72,6 @@ with DAG(
         task_id = "get_stock",
         python_callable = get_top500_intraday
     )
-    
-    # format_to_parquet_task = PythonOperator(
-    #     task_id="format_to_parquet_task",
-    #     python_callable=format_to_parquet,
-    #     op_kwargs={
-    #         "src_file": f"{path_to_local_home}/{dataset_file}",
-    #     }
-    # )
-
-    # local_to_gcs_task = PythonOperator(
-    #     task_id="local_to_gcs_task",
-    #     python_callable=upload_to_gcs,
-    #     op_kwargs={
-    #         "bucket": BUCKET,
-    #         "object_name": f"raw/{parquet_file}",
-    #         "local_file": f"{path_to_local_home}/{parquet_file}",
-    #     },
-    # )
     
     local_to_gcs_task = LocalFilesystemToGCSOperator(
         task_id = "local_to_gcs",
