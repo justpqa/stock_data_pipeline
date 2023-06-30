@@ -25,7 +25,6 @@ BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 dataset_file = "YOUR_DATASET_CSV_FILE"
 dataset_name = "YOUR_BQ_DATASET"
-#parquet_file = dataset_file.replace('.csv', '.parquet')
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'YOUR_BQ_DATASET')
 table_name = "YOUR_BQ_TABLE"
 
