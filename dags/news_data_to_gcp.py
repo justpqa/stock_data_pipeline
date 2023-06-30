@@ -118,7 +118,7 @@ with DAG(
             {'name': 'Ticker', 'type': 'STRING', 'mode': 'NULLABLE'},
             {'name': 'Title', 'type': 'STRING', 'mode': 'NULLABLE'}
         ],
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition='WRITE_APPEND',
         dag=dag,
     )
     
