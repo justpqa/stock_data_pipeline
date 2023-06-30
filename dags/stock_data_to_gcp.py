@@ -53,7 +53,7 @@ default_args = {
     'owner': 'airflow',
     'depends_on_past': True,    
     'start_date': datetime(2023, 6, 19),
-    'end_date': datetime(2023, 6, 26),
+    'end_date': datetime(2100, 12, 31),
     'email': ['airflow@airflow.com'],
     'email_on_failure': True,
     'email_on_retry': False,
@@ -62,7 +62,7 @@ default_args = {
 # define the dags
 with DAG(
     dag_id="data_ingestion_gcs_dag",
-    schedule_interval="@hourly",
+    schedule_interval="*/5 * * * *",
     default_args=default_args,
     catchup=False,
     max_active_runs=1
