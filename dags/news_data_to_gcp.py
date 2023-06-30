@@ -68,12 +68,10 @@ def get_news(ticker):
 
 def get_all_news():
     company_lst = get_top500_companies()
-    print("Found companies")
     results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
     for c in company_lst:
         temp = get_news(c)
         results_df = pd.concat([results_df, temp])
-        print(c)
     results_df = results_df.reset_index().drop("index", axis = 1)
     results_df.to_csv(f"{path_to_local_home}/{dataset_file}", index = False)
     
