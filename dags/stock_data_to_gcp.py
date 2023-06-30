@@ -95,7 +95,7 @@ with DAG(
             {'name': 'AdjClose', 'type': 'FLOAT', 'mode': 'NULLABLE'},
             {'name': 'Volume', 'type': 'FLOAT', 'mode': 'NULLABLE'}
         ],
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition='WRITE_APPEND',
         dag=dag,
     )
     
