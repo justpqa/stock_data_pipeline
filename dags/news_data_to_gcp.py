@@ -24,6 +24,8 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 dataset_file = "YOUR_DATASET_CSV_FILE"
+dataset_file_1 = "YOUR_DATASET_CSV_FILE_1"
+dataset_file_2 = "YOUR_DATASET_CSV_FILE_2"
 dataset_name = "YOUR_BQ_DATASET"
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'YOUR_BQ_DATASET')
 table_name = "YOUR_BQ_TABLE"
@@ -65,16 +67,33 @@ def get_news(ticker):
     
     return news_df
 
-def get_all_news():
+def get_all_news(isFirst):
     company_lst = get_top500_companies()
+    partition_length = len(company_lst) // 2
     results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
-    for c in company_lst:
-        temp = get_news(c)
-        results_df = pd.concat([results_df, temp])
-    results_df = results_df.reset_index().drop("index", axis = 1)
-    results_df.to_csv(f"{path_to_local_home}/{dataset_file}", index = False)
-    
+    if isFirst:
+        for c in company_lst[0:partition_length]:
+            temp = get_news(c)
+            results_df = pd.concat([results_df, temp])
+            print(c)
+        results_df = results_df.reset_index().drop("index", axis = 1)
+        results_df.to_csv(f"{path_to_local_home}/{dataset_file_1}", index = False)
+        return
+    else:
+        for c in company_lst[partition_length:]:
+            temp = get_news(c)
+            results_df = pd.concat([results_df, temp])
+            print(c)
+        results_df = results_df.reset_index().drop("index", axis = 1)
+        results_df.to_csv(f"{path_to_local_home}/{dataset_file_2}", index = False)
+        return
 
+def join_all_news(file1, file2):
+    df1 = pd.read_csv(file1)
+    df2 = pd.read_csv(file2)
+    df1 = pd.concat([df1, df2])
+    df1.to_csv(f"{path_to_local_home}/{dataset_file}", index = False)
+    return 
 
 default_args = {
     'owner': 'airflow',
@@ -95,16 +114,39 @@ with DAG(
     max_active_runs=1
 ) as dag:
     
-    get_all_news_task = PythonOperator(
-        task_id = "get_all_news",
-        python_callable = get_all_news
+    get_all_news_task_1 = PythonOperator(
+        task_id = "get_all_news_1",
+        python_callable = get_all_news,
+        op_args = {
+            "isFirst": True
+        },
+        dag = dag
+    )
+    
+    get_all_news_task_2 = PythonOperator(
+        task_id = "get_all_news_2",
+        python_callable = get_all_news,
+        op_kwargs = {
+            "isFirst": False
+        },
+        dag = dag
+    )
+    
+    join_all_news_task = PythonOperator(
+        task_id = "joined_all_new",
+        python_callable = join_all_news,
+        op_kwargs = {
+            "file1": f"{path_to_local_home}/{dataset_file_1}",
+            "file2": f"{path_to_local_home}/{dataset_file_2}"
+        },
+        dag = dag
     )
     
     local_to_gcs_task = LocalFilesystemToGCSOperator(
         task_id = "local_to_gcs",
         src = f"{path_to_local_home}/{dataset_file}",
         dst = f"raw/{dataset_file}",
-        bucket = BUCKET,
+        bucket = BUCKET
     )
     
     gcs_to_bigquery_task = GCSToBigQueryOperator(
@@ -121,4 +163,4 @@ with DAG(
         dag=dag,
     )
     
-get_all_news_task >> local_to_gcs_task >> gcs_to_bigquery_task
+[get_all_news_task_1, get_all_news_task_2] >> join_all_news_task >> local_to_gcs_task >> gcs_to_bigquery_task
