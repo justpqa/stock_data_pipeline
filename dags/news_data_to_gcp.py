@@ -24,7 +24,7 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 dataset_file = "YOUR_DATASET_CSV_FILE"
-dataset_lst = ["YOUR_DATASET_CSV_FILE_{i}.csv" for i in range(5)]
+dataset_lst = ["news_data_" + str(i) + ".csv" for i in range(5)]
 dataset_name = "YOUR_BQ_DATASET"
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'YOUR_BQ_DATASET')
 table_name = "YOUR_BQ_TABLE"
@@ -67,13 +67,14 @@ def get_news(ticker):
     return news_df
 
 def get_all_news(inx):
-    if inx in range(5):
+    if inx >= 0 and inx < 5:
         company_lst = get_top500_companies()
         results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
         company_lst = company_lst[100 * inx: 100 * (inx + 1)] if inx < 4 else company_lst[100 * inx:]
         for c in company_lst:
             temp = get_news(c)
             results_df = pd.concat([results_df, temp])
+            print(c)
         results_df = results_df.reset_index().drop("index", axis = 1)
         results_df.to_csv(f"{path_to_local_home}/{dataset_lst[inx]}", index = False)
         return
@@ -115,17 +116,18 @@ with DAG(
 ) as dag:
     
     scraping_task_lst = []
-    for i in range(4):
+    for task_inx in range(5):
+        task_name = "get_all_news_" + str(task_inx)
         new_task = PythonOperator(
-            task_id = "get_all_news_{i}",
+            task_id = task_name,
             python_callable = get_all_news,
-            op_args = {
-                "inx": i
+            op_kwargs = {
+                "inx": task_inx
             },
             dag = dag
         )
         scraping_task_lst.append(new_task)
-        
+    
     join_all_news_task = PythonOperator(
         task_id = "joined_all_new",
         python_callable = join_all_news,
