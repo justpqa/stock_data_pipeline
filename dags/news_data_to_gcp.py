@@ -82,18 +82,18 @@ def get_all_news(inx):
         print("Error in the index")
         return
 
-def join_all_news(datafile_lst):
-    if len(datafile_lst) == 0:
+def join_all_news(dlst, dfile):
+    if len(dlst) == 0:
         print("The file list that you provide is empty")
     
-    res = pd.read_csv(f"{path_to_local_home}/{datafile_lst[0]}")
+    res = pd.read_csv(f"{path_to_local_home}/{dlst[0]}")
     
-    if len(datafile_lst) > 1:
-        for i in range(1, len(datafile_lst)):
-            temp = pd.read_csv(f"{path_to_local_home}/{datafile_lst[i]}")
+    if len(dlst) > 1:
+        for i in range(1, len(dlst)):
+            temp = pd.read_csv(f"{path_to_local_home}/{dlst[i]}")
             res = pd.concat([res, temp])
     
-    res.to_csv(f"{path_to_local_home}/{dataset_name}", index = False)
+    res.to_csv(f"{path_to_local_home}/{dfile}", index = False)
     return 
 
 default_args = {
@@ -132,7 +132,8 @@ with DAG(
         task_id = "joined_all_new",
         python_callable = join_all_news,
         op_kwargs = {
-            "datafile_lst": dataset_lst
+            "dlst": dataset_lst,
+            "dfile": dataset_file
         },
         dag = dag
     )
