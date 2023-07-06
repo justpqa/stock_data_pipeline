@@ -29,15 +29,14 @@ def get_top500_companies():
 
     # Extract the required columns
     sp500_companies = sp500_table['Symbol'].tolist()
+    sp500_companies.remove("BF.B")
+    sp500_companies.remove("BRK.B")
 
     return sp500_companies
 
 def get_top500_intraday():
     # get the list of top 500 companies
     company_lst = get_top500_companies()
-    # remove error company ticker
-    company_lst.remove("BF.B")
-    company_lst.remove("BRK.B")
     # get the intraday data of these companies
     data = yf.download(tickers=company_lst[0], period='1d', interval='60m', progress=False)
     data["ticker"] = company_lst[0]
