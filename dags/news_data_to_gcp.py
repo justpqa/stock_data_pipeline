@@ -109,7 +109,7 @@ default_args = {
 # define the dags
 with DAG(
     dag_id="news_data_ingestion_dag",
-    schedule_interval="* */1 * * *",
+    schedule_interval="0 * * * *",
     default_args=default_args,
     catchup=False,
     max_active_runs=1
