@@ -40,13 +40,10 @@ def get_all_intraday(inx):
     if inx >= 0 and inx < 5:
         company_lst = get_top500_companies()
         company_lst = company_lst[100 * inx: 100 * (inx + 1)] if inx < 4 else company_lst[100 * inx:]
-        data = yf.download(tickers=company_lst[0], period='1m', interval='1m', progress=False)
-        for i in range(1, len(company_lst)):
-            temp = yf.download(tickers=company_lst[i], period='1m', interval='1m', progress=False)
-            temp["ticker"] = company_lst[i]
-            data = pd.concat([data, temp], axis = 0)
-        data = data.iloc[:, [6, 0, 1, 2, 3, 4, 5]].reset_index()
-        data["Datetime"] = data["Datetime"].apply(lambda x: x.to_pydatetime().replace(tzinfo = None))
+        data = pd.DataFrame(columns = ["Time", "Ticker", "Price"])
+        for i in range(len(company_lst)):
+            price = yf.Ticker(company_lst[i]).info['currentPrice']
+            data.loc[len(data)] = [datetime.now(), company_lst[i], price]
         data.to_csv(f"{path_to_local_home}/{dataset_lst[inx]}", index = False)
         return
     else:
@@ -81,7 +78,7 @@ default_args = {
 # define the dags
 with DAG(
     dag_id="data_ingestion_gcs_dag",
-    schedule_interval="* * * * *",
+    schedule_interval="*/2 * * * *",
     default_args=default_args,
     catchup=False,
     max_active_runs=1
@@ -123,17 +120,12 @@ with DAG(
         source_objects = f"raw/{dataset_file}",
         destination_project_dataset_table = f"{dataset_name}.{table_name}",
         schema_fields = [
-            {'name': 'Datetime', 'type': 'DATETIME', 'mode': 'NULLABLE'},
+            {'name': 'Time', 'type': 'DATETIME', 'mode': 'NULLABLE'},
             {'name': 'Ticker', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'Open', 'type': 'FLOAT', 'mode': 'NULLABLE'},
-            {'name': 'High', 'type': 'FLOAT', 'mode': 'NULLABLE'},
-            {'name': 'Low', 'type': 'FLOAT', 'mode': 'NULLABLE'},
-            {'name': 'Close', 'type': 'FLOAT', 'mode': 'NULLABLE'},
-            {'name': 'AdjClose', 'type': 'FLOAT', 'mode': 'NULLABLE'},
-            {'name': 'Volume', 'type': 'FLOAT', 'mode': 'NULLABLE'}
+            {'name': 'Price', 'type': 'FLOAT', 'mode': 'NULLABLE'},
         ],
         write_disposition='WRITE_APPEND',
         dag=dag,
     )
     
-intraday_task_lst >> join_all_stocks_task >>  local_to_gcs_task >> gcs_to_bigquery_task
+intraday_task_lst >> join_all_stocks_task >> local_to_gcs_task >> gcs_to_bigquery_task
