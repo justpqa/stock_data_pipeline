@@ -8,19 +8,19 @@ from google.cloud import storage
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-from datetime import datetime
 import pandas as pd
 import yfinance as yf
+from datetime import datetime
 
 # define variables to be used
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
-dataset_file = "YOUR_DATASET_CSV_FILE"
-dataset_lst = ["YOUR_DATASET_" + str(i) + ".csv" for i in range(5)]
-dataset_name = "YOUR_BQ_DATASET"
-BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'YOUR_BQ_DATASET')
-table_name = "YOUR_BQ_TABLE"
+dataset_file = "ticker_data.csv"
+dataset_lst = ["ticker_data_" + str(i) + ".csv" for i in range(5)]
+dataset_name = "stock_data_all"
+BIGQUERY_DATASET = "stock_data_all"
+table_name = "ticker_data"
 
 # define python function for used in PythonOperator
 def get_top500_companies():
@@ -40,10 +40,14 @@ def get_all_intraday(inx):
     if inx >= 0 and inx < 5:
         company_lst = get_top500_companies()
         company_lst = company_lst[100 * inx: 100 * (inx + 1)] if inx < 4 else company_lst[100 * inx:]
-        data = pd.DataFrame(columns = ["Time", "Ticker", "Price"])
+        data = pd.DataFrame(columns = ["Time", "Ticker", "Price", "Volume"])
         for i in range(len(company_lst)):
-            price = yf.Ticker(company_lst[i]).info['currentPrice']
-            data.loc[len(data)] = [datetime.now(), company_lst[i], price]
+            try:
+                info = yf.Ticker(company_lst[i]).info
+                data.loc[len(data)] = [datetime.now(), company_lst[i], info['currentPrice'], info['volume']]
+            except:
+                print("Error at stock: {} at {}".format(company_lst[i], datetime.now()))
+                continue
         data.to_csv(f"{path_to_local_home}/{dataset_lst[inx]}", index = False)
         return
     else:
@@ -53,6 +57,7 @@ def get_all_intraday(inx):
 def join_all_stocks(dlst, dfile):
     if len(dlst) == 0:
         print("The file list that you provide is empty")
+        return
     
     res = pd.read_csv(f"{path_to_local_home}/{dlst[0]}")
     
@@ -61,6 +66,7 @@ def join_all_stocks(dlst, dfile):
             temp = pd.read_csv(f"{path_to_local_home}/{dlst[i]}")
             res = pd.concat([res, temp])
     
+    print("Data at {} has the length {}".format(datetime.now(), res.shape[0]))
     res.to_csv(f"{path_to_local_home}/{dfile}", index = False)
     return 
 
@@ -77,8 +83,8 @@ default_args = {
 }
 # define the dags
 with DAG(
-    dag_id="data_ingestion_gcs_dag",
-    schedule_interval="*/2 * * * *",
+    dag_id="ticker_data_gcs_dag",
+    schedule_interval="4-58/2 * * * *",
     default_args=default_args,
     catchup=False,
     max_active_runs=1
@@ -123,6 +129,7 @@ with DAG(
             {'name': 'Time', 'type': 'DATETIME', 'mode': 'NULLABLE'},
             {'name': 'Ticker', 'type': 'STRING', 'mode': 'NULLABLE'},
             {'name': 'Price', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'Volume', 'type': 'FLOAT', 'mode': 'NULLABLE'}
         ],
         write_disposition='WRITE_APPEND',
         dag=dag,

@@ -5,30 +5,24 @@ from airflow import DAG
 from airflow.operators.python import PythonOperator
 
 from google.cloud import storage
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 
-from selenium.webdriver import ChromeOptions, Chrome
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-
 import pandas as pd
-import numpy as np
+import yfinance as yf
 from datetime import datetime
-import time
 
 # define variables to be used
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
-dataset_file = "news_data.csv"
-dataset_lst = ["news_data_" + str(i) + ".csv" for i in range(5)]
+dataset_file = "fin_ratio_data.csv"
+dataset_lst = ["fin_ratio_data_" + str(i) + ".csv" for i in range(5)]
 dataset_name = "stock_data_all"
 BIGQUERY_DATASET = "stock_data_all"
-table_name = "news_data"
+table_name = "fin_ratio_data"
 
+# define python function for used in PythonOperator
 def get_top500_companies():
     url = 'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies'
     tables = pd.read_html(url)
@@ -36,54 +30,34 @@ def get_top500_companies():
 
     # Extract the required columns
     sp500_companies = sp500_table['Symbol'].tolist()
+    # remove error company ticker
     sp500_companies.remove("BF.B")
     sp500_companies.remove("BRK.B")
+
     return sp500_companies
 
-def get_news(ticker):
-    news_df = pd.DataFrame(columns=["Date", "Ticker", "Title"])
-    browser_options = ChromeOptions()
-    browser_options.add_argument("--no-sandbox")
-    browser_options.add_argument("--headless")
-    browser_options.add_argument("--disable-dev-shm-usage")
-    driver = Chrome(options = browser_options)
-    driver.get("https://www.cnbc.com/quotes/{}?tab=news".format(ticker))
-    ticker = ticker
-    try:
-        for j in range(1, 6):
-            try:
-                r = driver.find_element(By.XPATH, "/html/body/div[2]/div/div[1]/div[3]/div/div[2]/div[1]/div[5]/div[2]/div/div[1]/ul/li[{}]/div/div".format(j))
-                temp = str(r.text).split("\n")
-                news_df.loc[len(news_df), news_df.columns] = datetime.strptime(temp[1], "%B %d, %Y"), ticker, temp[0]
-            except:
-                continue
-    except:
-        print("Fail in getting news about {}".format(ticker))
-        print("")
-    
-    driver.close()
-    driver.quit()
-    
-    return news_df
-
-def get_all_news(inx):
+def get_all_fr(inx):
     if inx >= 0 and inx < 5:
         company_lst = get_top500_companies()
-        results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
         company_lst = company_lst[100 * inx: 100 * (inx + 1)] if inx < 4 else company_lst[100 * inx:]
-        for c in company_lst:
-            temp = get_news(c)
-            results_df = pd.concat([results_df, temp])
-        results_df = results_df.reset_index().drop("index", axis = 1)
-        results_df.to_csv(f"{path_to_local_home}/{dataset_lst[inx]}", index = False)
+        data = pd.DataFrame(columns = ["Time", "Ticker", "QuickRatio", "CurrentRatio", "ROA", "ROE", "DebttoEquity", "FCF"])
+        for i in range(len(company_lst)):
+            try:
+                info = yf.Ticker(company_lst[i]).info
+                data.loc[len(data)] = [datetime.now(), company_lst[i], info['quickRatio'], info['currentRatio'], info['returnOnAssets'], info['returnOnEquity'], info["debtToEquity"], info["freeCashflow"]]
+            except:
+                print("Error at stock: {} at {}".format(company_lst[i], datetime.now()))
+                continue
+        data.to_csv(f"{path_to_local_home}/{dataset_lst[inx]}", index = False)
         return
     else:
         print("Error in the index")
         return
 
-def join_all_news(dlst, dfile):
+def join_all_stocks(dlst, dfile):
     if len(dlst) == 0:
         print("The file list that you provide is empty")
+        return
     
     res = pd.read_csv(f"{path_to_local_home}/{dlst[0]}")
     
@@ -92,14 +66,16 @@ def join_all_news(dlst, dfile):
             temp = pd.read_csv(f"{path_to_local_home}/{dlst[i]}")
             res = pd.concat([res, temp])
     
+    print("Data at {} has the length {}".format(datetime.now(), res.shape[0]))
     res.to_csv(f"{path_to_local_home}/{dfile}", index = False)
     return 
 
+# define the default arguments for dags
 default_args = {
     'owner': 'airflow',
     'depends_on_past': True,    
-    'start_date': datetime(2023, 6, 25),
-    'end_date': datetime(2100, 7, 7),
+    'start_date': datetime(2023, 6, 19),
+    'end_date': datetime(2100, 12, 31),
     'email': ['airflow@airflow.com'],
     'email_on_failure': True,
     'email_on_retry': False,
@@ -107,42 +83,41 @@ default_args = {
 }
 # define the dags
 with DAG(
-    dag_id="news_data_ingestion_dag",
-    schedule_interval="0 */2 * * *",
+    dag_id="financial_ratio_gcs_dag",
+    schedule_interval="2 * * * *",
     default_args=default_args,
     catchup=False,
     max_active_runs=1
 ) as dag:
     
-    scraping_task_lst = []
+    fr_task_lst = []
     for task_inx in range(5):
-        task_name = "get_all_news_" + str(task_inx)
+        task_name = "get_fr_" + str(task_inx)
         new_task = PythonOperator(
             task_id = task_name,
-            python_callable = get_all_news,
+            python_callable = get_all_fr,
             op_kwargs = {
                 "inx": task_inx
             },
             dag = dag
         )
-        scraping_task_lst.append(new_task)
+        fr_task_lst.append(new_task)
     
-    join_all_news_task = PythonOperator(
-        task_id = "joined_all_new",
-        python_callable = join_all_news,
+    join_all_stocks_task = PythonOperator(
+        task_id = "joined_all_stocks",
+        python_callable = join_all_stocks,
         op_kwargs = {
             "dlst": dataset_lst,
             "dfile": dataset_file
         },
         dag = dag
     )
-    
+
     local_to_gcs_task = LocalFilesystemToGCSOperator(
         task_id = "local_to_gcs",
         src = f"{path_to_local_home}/{dataset_file}",
         dst = f"raw/{dataset_file}",
         bucket = BUCKET,
-        dag = dag
     )
     
     gcs_to_bigquery_task = GCSToBigQueryOperator(
@@ -151,12 +126,17 @@ with DAG(
         source_objects = f"raw/{dataset_file}",
         destination_project_dataset_table = f"{dataset_name}.{table_name}",
         schema_fields = [
-            {'name': 'Date', 'type': 'DATETIME', 'mode': 'NULLABLE'},
+            {'name': 'Time', 'type': 'DATETIME', 'mode': 'NULLABLE'},
             {'name': 'Ticker', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'Title', 'type': 'STRING', 'mode': 'NULLABLE'}
+            {'name': 'QuickRatio', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'CurrentRatio', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'ROA', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'ROE', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'DebttoEquity', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'FCF', 'type': 'FLOAT', 'mode': 'NULLABLE'}
         ],
         write_disposition='WRITE_APPEND',
-        dag=dag
+        dag=dag,
     )
     
-scraping_task_lst >> join_all_news_task >> local_to_gcs_task >> gcs_to_bigquery_task
+fr_task_lst >> join_all_stocks_task >> local_to_gcs_task >> gcs_to_bigquery_task
