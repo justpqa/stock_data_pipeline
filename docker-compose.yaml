@@ -50,7 +50,7 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__CELERY__WORKER_CONCURRENCY: 5
+    AIRFLOW__CELERY__WORKER_CONCURRENCY: 10
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
@@ -62,8 +62,8 @@ x-airflow-common:
     _PIP_ADDITIONAL_REQUIREMENTS: ""
     GOOGLE_APPLICATION_CREDENTIALS: /.google/credentials/google_credentials.json
     AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT: 'google-cloud-platform://?extra__google_cloud_platform__key_path=/.google/credentials/google_credentials.json'
-    GCP_PROJECT_ID: 'cedar-shard-358120'
-    GCP_GCS_BUCKET: "airflow_1234"
+    GCP_PROJECT_ID: 'genial-moon-397220'
+    GCP_GCS_BUCKET: "data_bucket_1211"
 
   volumes:
     - ./dags:/opt/airflow/dags

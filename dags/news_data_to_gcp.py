@@ -16,6 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 import pandas as pd
 import numpy as np
+import yfinance as yf
 from datetime import datetime
 import time
 
@@ -41,7 +42,7 @@ def get_top500_companies():
     return sp500_companies
 
 def get_news(ticker):
-    news_df = pd.DataFrame(columns=["Date", "Ticker", "Title"])
+    news_df = pd.DataFrame(columns=["CollectedAt", "Date", "Ticker", "Title", "Price", "Volume"])
     browser_options = ChromeOptions()
     browser_options.add_argument("--no-sandbox")
     browser_options.add_argument("--headless")
@@ -54,7 +55,8 @@ def get_news(ticker):
             try:
                 r = driver.find_element(By.XPATH, "/html/body/div[2]/div/div[1]/div[3]/div/div[2]/div[1]/div[5]/div[2]/div/div[1]/ul/li[{}]/div/div".format(j))
                 temp = str(r.text).split("\n")
-                news_df.loc[len(news_df), news_df.columns] = datetime.strptime(temp[1], "%B %d, %Y"), ticker, temp[0]
+                info = yf.Ticker(company_lst[i]).info
+                news_df.loc[len(news_df), news_df.columns] = datetime.now(), datetime.strptime(temp[1], "%B %d, %Y"), ticker, temp[0], info['currentPrice'], info['volume']
             except:
                 continue
     except:
@@ -69,7 +71,7 @@ def get_news(ticker):
 def get_all_news(inx):
     if inx >= 0 and inx < 5:
         company_lst = get_top500_companies()
-        results_df = pd.DataFrame(columns = ["Date", "Ticker", "Title"])
+        results_df = pd.DataFrame(columns = ["CollectedAt", "Date", "Ticker", "Title", "Price", "Volume"])
         company_lst = company_lst[100 * inx: 100 * (inx + 1)] if inx < 4 else company_lst[100 * inx:]
         for c in company_lst:
             temp = get_news(c)
@@ -151,9 +153,12 @@ with DAG(
         source_objects = f"raw/{dataset_file}",
         destination_project_dataset_table = f"{dataset_name}.{table_name}",
         schema_fields = [
+            {'name': 'CollectedAt', 'type': 'DATETIME', 'mode': 'NULLABLE'},
             {'name': 'Date', 'type': 'DATETIME', 'mode': 'NULLABLE'},
             {'name': 'Ticker', 'type': 'STRING', 'mode': 'NULLABLE'},
             {'name': 'Title', 'type': 'STRING', 'mode': 'NULLABLE'}
+            {'name': 'Price', 'type': 'FLOAT', 'mode': 'NULLABLE'},
+            {'name': 'Volume', 'type': 'FLOAT', 'mode': 'NULLABLE'}
         ],
         write_disposition='WRITE_APPEND',
         dag=dag
